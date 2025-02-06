@@ -28,12 +28,21 @@ export default function ShareButtons() {
     )}`;
     const stores = STORE_URLS[appName];
 
-    try {
-      window.location.href = appUrl;
+    // 记录当前时间
+    const startTime = Date.now();
+    let hasRedirected = false;
 
-      setTimeout(() => {
-        if (document.hidden) return;
+    // 检测是否已跳转
+    const checkRedirect = () => {
+      if (document.hidden || hasRedirected) {
+        hasRedirected = true;
+        return;
+      }
 
+      // 如果超过一定时间（这里设置 2500ms）还没跳转，认为没有安装应用
+      if (Date.now() - startTime > 2500) {
+        hasRedirected = true;
+        // 根据设备类型跳转到应用商店
         if (/android/i.test(navigator.userAgent)) {
           window.location.href = stores.android;
         } else if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
@@ -41,10 +50,53 @@ export default function ShareButtons() {
         } else {
           alert("请在移动设备上使用此功能");
         }
-      }, 3000);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } else {
+        // 继续检查
+        requestAnimationFrame(checkRedirect);
+      }
+    };
+
+    // 尝试打开应用
+    const openApp = () => {
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = appUrl;
+      document.body.appendChild(iframe);
+
+      // 开始检测是否跳转成功
+      requestAnimationFrame(checkRedirect);
+
+      // 清理 iframe
+      setTimeout(() => {
+        iframe.remove();
+      }, 2000);
+    };
+
+    try {
+      // 对于 iOS，使用 window.location
+      if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+        window.location.href = appUrl;
+        setTimeout(() => {
+          if (!document.hidden) {
+            window.location.href = stores.ios;
+          }
+        }, 2500);
+      }
+      // 对于 Android，使用 iframe 方法
+      else if (/android/i.test(navigator.userAgent)) {
+        openApp();
+      }
+      // 其他设备显示提示
+      else {
+        alert("请在移动设备上使用此功能");
+      }
     } catch (e) {
-      alert(`无法打开${appName} App，请确保已安装`);
+      // 如果出错，直接跳转到应用商店
+      if (/android/i.test(navigator.userAgent)) {
+        window.location.href = stores.android;
+      } else if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+        window.location.href = stores.ios;
+      }
     }
   };
 
